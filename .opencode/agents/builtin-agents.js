@@ -12,7 +12,7 @@ function logToDebug(directory, message) {
   try {
     const logPath = path.join(directory, 'v-agent-debug.log');
     fs.appendFileSync(logPath, `[AGENT-REGISTRY] ${message}\n`, 'utf8');
-  } catch (e) {}
+  } catch (e) { }
 }
 
 /**
@@ -100,7 +100,7 @@ function loadSkills(directory, registeredPaths = []) {
             }
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -114,10 +114,15 @@ export async function registerAgents(config, directory) {
   logToDebug(directory, "registerAgents started");
   config.agent = config.agent || {};
 
-  config.default_agent = "monarch";
+  // If _OC_DEFAULT_AGENT is set (trial infra), defer to --agent CLI flag
+  // to bypass opencode's defaultAgent() lookup bug for plugin-registered agents.
+  // Otherwise set repo-level default for local interactive chat.
+  if (!process.env._OC_DEFAULT_AGENT) {
+    config.default_agent = "monarch";
+  }
 
   // Resolve current active model (fall back to MiniMax in opencode.json)
-  const currentModel = config.model || "MiniMax/MiniMax-M2.7";
+  const currentModel = config.model;
   logToDebug(directory, `config.model resolved to: ${currentModel}`);
 
   // Load overrides from opencode.json (config.agents) and monarch-config.json

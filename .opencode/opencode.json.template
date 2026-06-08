@@ -3,7 +3,7 @@
   "provider": {
     "aigateway": {
       "models": {
-        "MiniMax/MiniMax-M2.7": {}
+        "": {}
       },
       "options": {
         "baseURL": "$env:OPENCODE_BASE_URL",

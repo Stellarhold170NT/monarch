@@ -68,9 +68,10 @@ export const handleMessageTransform = async (input, output, {
               sessionId: sessionId,
               mode: mode,
               iteration: 1,
-              maxIterations: 30,
+              maxIterations: 100,
               prompt: cleanPrompt,
-              status: 'working'
+              status: 'working',
+              messageCountAtStart: 0
             };
 
             try {
@@ -79,7 +80,7 @@ export const handleMessageTransform = async (input, output, {
 
               if (firstTextPart) {
                 const instruction = `\n\n<VCORP_LOOP_INSTRUCTION>
-[V-AGENT SYSTEM] Bạn đang chạy trong chế độ lặp tự động (${mode === 'ulw' ? 'ULW' : 'Thường'}).
+[V-AGENT SYSTEM - ULW LOOP 1/100] Bạn đang chạy trong chế độ lặp tự động (${mode === 'ulw' ? 'ULW' : 'Thường'}).
 BẮT BUỘC CHO AI: Hãy phân tích yêu cầu và thực hiện các thay đổi cần thiết. 
 Khi bạn tin rằng công việc đã HOÀN THÀNH, bạn BẮT BUỘC phải báo cáo kết quả cụ thể và xuất thẻ tín hiệu: <promise>DONE</promise>.
 </VCORP_LOOP_INSTRUCTION>`;

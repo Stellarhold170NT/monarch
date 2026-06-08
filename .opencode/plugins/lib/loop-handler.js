@@ -2,6 +2,53 @@ import fs from 'fs';
 import path from 'path';
 
 const activeSessions = new Set();
+const recentSyntheticIdleAt = new Map(); // sessionId → timestamp (rapid idle dedup)
+const RAPID_IDLE_DEDUP_MS = 500;         // skip real idle within 500ms of synthetic idle (Sisyphus parity)
+
+// ── oh-my-openagent compatible guard constants ──
+const SETTLE_MS = 150;                // idleSettleMs: brief wait before acting on idle
+const USER_MSG_IN_PROGRESS_MS = 2000; // skip if last user msg created within this window
+// ─────────────────────────────────────────────
+
+function hasPendingToolCalls(messages, startIdx) {
+  // Check assistant messages for pending/running tool calls → session is busy
+  for (let i = messages.length - 1; i >= (startIdx || 0); i--) {
+    const msg = messages[i];
+    if (msg?.info?.role === 'assistant' && Array.isArray(msg.parts)) {
+      for (const part of msg.parts) {
+        if (part.type === 'tool' && part.state && (part.state.status === 'pending' || part.state.status === 'running')) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function latestUserMessageInProgress(messages) {
+  // Check if the latest user message was created within USER_MSG_IN_PROGRESS_MS
+  // Matches Sisyphus event-handler-activity.ts:124-126 behavior
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (!msg) continue;
+
+    // If we hit an assistant or tool message before a user message, the user's
+    // latest input has already been consumed → not in progress (Sisyphus parity)
+    if (msg?.info?.role === 'assistant' || msg?.info?.role === 'tool') {
+      return false;
+    }
+
+    if (msg?.info?.role === 'user') {
+      // Sisyphus reads from msg.info.time.created or msg.time.created
+      const createdAt = (msg.info?.time?.created) || (msg.time?.created) || msg.created || msg.timestamp || (msg.info?.created) || (msg.info?.timestamp);
+      if (createdAt && Date.now() - new Date(createdAt).getTime() < USER_MSG_IN_PROGRESS_MS) {
+        return true;
+      }
+      return false; // Found the latest user msg, it's older than the window
+    }
+  }
+  return false;
+}
 
 function collectAssistantText(message) {
   if (!message || !Array.isArray(message.parts)) return "";
@@ -91,9 +138,10 @@ export const handleSessionIdle = async (client, directory, sessionId, loopJsonPa
       return;
     }
 
-    // Find the last assistant message
+    // Find the last assistant message within scope (only check messages since last continuation)
+    const startIdx = typeof state.messageCountAtStart === 'number' ? state.messageCountAtStart : 0;
     let lastAssistantMsg = null;
-    for (let i = messages.length - 1; i >= 0; i--) {
+    for (let i = messages.length - 1; i >= startIdx; i--) {
       if (messages[i]?.info?.role === 'assistant') {
         lastAssistantMsg = messages[i];
         break;
@@ -173,19 +221,20 @@ export const handleSessionIdle = async (client, directory, sessionId, loopJsonPa
           // First time reporting done in ULW -> Transition to verifying phase
           state.status = 'verifying';
           state.iteration += 1;
+          state.messageCountAtStart = messages.length;
           try {
             fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8');
           } catch (e) { }
 
+          const taskLabel = state.prompt.split('\n')[0].slice(0, 120);
           const verificationPrompt = `[V-AGENT SYSTEM - ULW VERIFICATION LƯỢT ${state.iteration}/${maxIterations}]
-Bạn đã báo DONE. BẮT BUỘC BÂY GIỜ:
-- Hãy tạm ngưng vai trò lập trình viên thông thường. Chuyển sang tư duy của một kiểm định viên (QA/Oracle) độc lập và hoài nghi.
-- Rà soát lại toàn bộ mã nguồn vừa chỉnh sửa, kiểm tra kỹ xem có lỗi logic hay trường hợp biên nào bị bỏ sót không bằng cách đọc kỹ yêu cầu của người dùng lại một lần nữa.
-- Nếu mọi thứ ĐÃ CHÍNH XÁC tuyệt đối, hãy xuất thẻ tín hiệu: <promise>VERIFIED</promise>.
-- Nếu phát hiện lỗi hoặc điểm chưa hoàn thiện, hãy trực tiếp sửa lỗi (hoặc liệt kê và sửa) rồi xuất thẻ: <promise>DONE</promise> khi sẵn sàng kiểm tra lại.
+You reported DONE. REQUIRED NOW:
+- DO NOT self-verify. Call **Igris** (subagent_type="igris") to review the work.
+- Wait for Igris response. Do not conclude yourself.
+- Igris says VERIFIED → output: <promise>VERIFIED</promise>.
+- Igris finds issues → fix them → output: <promise>DONE</promise> for next verification round.
 
-Nhiệm vụ gốc:
-${state.prompt}`;
+Task: ${taskLabel}`;
 
           try {
             await sendPromptAsync(verificationPrompt);
@@ -205,18 +254,20 @@ ${state.prompt}`;
             return;
           }
 
+          state.messageCountAtStart = messages.length;
           try {
             fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8');
           } catch (e) { }
 
+          const taskLabel = state.prompt.split('\n')[0].slice(0, 120);
           const verificationPrompt = `[V-AGENT SYSTEM - ULW VERIFICATION LƯỢT ${state.iteration}/${maxIterations}]
-Bạn tiếp tục báo DONE sau khi chỉnh sửa. BẮT BUỘC BÂY GIỜ:
-- Tiếp tục đánh giá khách quan mã nguồn ở vai trò kiểm định viên (QA/Oracle).
-- Nếu đã chính xác hoàn toàn và không còn lỗi nào khác, xuất thẻ tín hiệu: <promise>VERIFIED</promise>.
-- If you find any other issue, please fix it directly and output: <promise>DONE</promise> when ready.
+You reported DONE again after fixing. REQUIRED NOW:
+- DO NOT self-verify. Call **Igris** (subagent_type="igris") to re-review.
+- Wait for Igris response. Do not conclude yourself.
+- Igris says VERIFIED → output: <promise>VERIFIED</promise>.
+- Igris finds issues → fix → output: <promise>DONE</promise>.
 
-Nhiệm vụ gốc:
-${state.prompt}`;
+Task: ${taskLabel}`;
 
           try {
             await sendPromptAsync(verificationPrompt);
@@ -246,6 +297,70 @@ ${state.prompt}`;
       }
     }
 
+    // ── Guard checks (oh-my-openagent compatible) ──
+    // Before sending continuation, verify session is truly idle (not busy with tool calls)
+    await new Promise(r => setTimeout(r, SETTLE_MS));
+
+    // 1. Rapid idle dedup — skip if a synthetic idle was handled within 500ms (Sisyphus parity)
+    const lastSynthetic = recentSyntheticIdleAt.get(sessionId);
+    if (lastSynthetic && Date.now() - lastSynthetic < RAPID_IDLE_DEDUP_MS) {
+      log(`Guard: rapid idle dedup (${Date.now() - lastSynthetic}ms since last synthetic) -> skip`);
+      return;
+    }
+
+    // 2. Re-read state in case it changed during settle
+    try {
+      if (fs.existsSync(loopJsonPath)) {
+        const freshState = JSON.parse(fs.readFileSync(loopJsonPath, 'utf8'));
+        if (!freshState.active || freshState.status === 'done') {
+          log(`State changed during settle -> skip continuation`);
+          return;
+        }
+      }
+    } catch (e) { }
+
+    // 3. Authoritative session.status() check (Sisyphus primary mechanism)
+    try {
+      let sessionBusy = false;
+      if (typeof client.session.status === 'function') {
+        const statusResp = await client.session.status({ path: { id: sessionId }, query: { directory } });
+        const statusType = statusResp?.[sessionId]?.type || statusResp?.type;
+        if (['busy', 'running', 'retry'].includes(statusType)) {
+          sessionBusy = true;
+        }
+      } else if (typeof client.session.get === 'function') {
+        const sessionInfo = await client.session.get({ path: { sessionID: sessionId }, query: { directory } });
+        if (sessionInfo?.status && ['busy', 'running', 'retry'].includes(sessionInfo.status)) {
+          sessionBusy = true;
+        }
+      }
+      if (sessionBusy) {
+        log(`Guard: session.status reports busy -> skip continuation`);
+        state.messageCountAtStart = messages.length;
+        try { fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8'); } catch (e) { }
+        return;
+      }
+    } catch (e) {
+      log(`Guard: session.status check failed (non-critical): ${e.message}`);
+    }
+
+    // 4. Check if latest user message is still in progress (created within 2s window)
+    if (latestUserMessageInProgress(messages)) {
+      log(`Guard: latest user message in progress (within ${USER_MSG_IN_PROGRESS_MS}ms) -> skip continuation`);
+      state.messageCountAtStart = messages.length;
+      try { fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8'); } catch (e) { }
+      return;
+    }
+
+    // 5. Check for pending/running tool calls → session is busy (secondary heuristic)
+    if (hasPendingToolCalls(messages, startIdx)) {
+      log(`Guard: pending/running tool calls detected -> session is busy, skip continuation`);
+      state.messageCountAtStart = messages.length;
+      try { fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8'); } catch (e) { }
+      return;
+    }
+    // ─────────────────────────────────────────────
+
     // Case C: No special tags found -> Agent is still working but idle
     state.iteration += 1;
     if (state.iteration > maxIterations) {
@@ -267,15 +382,18 @@ ${state.prompt}`;
       return;
     }
 
+    state.messageCountAtStart = messages.length;
     try {
       fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8');
     } catch (e) { }
 
+    // System directive: simple continuation WITHOUT full spec to avoid Phase 0 verb pollution.
+    // Agent already has the full spec in conversation history.
+    const taskLabel = state.prompt.split('\n')[0].slice(0, 120);
     const continuationPrompt = `[V-AGENT SYSTEM - ULW LOOP LƯỢT ${state.iteration}/${maxIterations}]
-Tiếp tục thực hiện nhiệm vụ. Khi hoàn thành, bắt buộc xuất thẻ tín hiệu: <promise>DONE</promise>.
+Continue working until the task is fully complete. When done, output: <promise>DONE</promise>.
 
-Nhiệm vụ gốc:
-${state.prompt}`;
+Task: ${taskLabel}`;
 
     try {
       await sendPromptAsync(continuationPrompt);

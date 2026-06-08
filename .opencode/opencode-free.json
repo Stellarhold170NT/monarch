@@ -1,0 +1,18 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "opencode": {
+      "models": {
+        "deepseek-v4-flash-free": {
+          "name": "DeepSeek V4 Flash Free"
+        }
+      },
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "OpenCode Zen",
+      "options": {
+        "baseURL": "https://opencode.ai/zen/v1"
+      }
+    }
+  },
+  "permission": "allow"
+}

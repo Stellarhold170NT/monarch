@@ -131,6 +131,12 @@ ${toolMapping}
         config.skills.paths.push(superpowersSkillsDir);
       }
 
+      // Log raw config agent state BEFORE modification
+      try {
+        const logFile = getLogFilePath(directory);
+        fs.appendFileSync(logFile, `[CONFIG-DEBUG] BEFORE agent modification. config.agent type=${typeof config.agent}, isArray=${Array.isArray(config.agent)}, keys=${config.agent ? Object.keys(config.agent).join(',') : 'N/A'}. config.default_agent=${config.default_agent}. config.model=${config.model}. config.agents=${config.agents ? typeof config.agents : 'N/A'}\n`, 'utf8');
+      } catch(e) {}
+
       // --- ADDED CONFIG PATH ENHANCEMENT ---
       await handleConfigPaths(config, vcorp.roleDir, vcorp.roleJsonPath, superpowersSkillsDir, vcorp.vSkillsDir, vcorp.getDefinedRoles(), vcorp.debugLog);
 
@@ -146,16 +152,61 @@ ${toolMapping}
         fs.appendFileSync(getLogFilePath(directory), `[PLUGIN] Importing builtin-agents.js\n`, 'utf8');
         const { registerAgents } = await import('../agents/builtin-agents.js');
         await registerAgents(config, directory);
+        fs.appendFileSync(getLogFilePath(directory), `[PLUGIN] registerAgents returned OK\n`, 'utf8');
       } catch (err) {
         try {
           fs.appendFileSync(getLogFilePath(directory), `[PLUGIN-ERROR] Error loading agents: ${err.message}\n${err.stack}\n`, 'utf8');
         } catch (e) {}
       }
+      fs.appendFileSync(getLogFilePath(directory), `[PLUGIN] config hook returning. config.default_agent=${config.default_agent}\n`, 'utf8');
       // -------------------------------------
     },
 
     // --- ADDED EVENT HOOK ---
     event: async (input) => {
+      try {
+        const eventType = input.event?.type;
+        const props = input.event?.properties || {};
+        let logMsg = `[EVENT-HOOK] type=${eventType}, properties keys=${Object.keys(props).join(',')}`;
+        if (eventType === 'session.error') {
+          // Log full error details
+          const errorVal = props.error;
+          if (errorVal) {
+            if (typeof errorVal === 'object') {
+              logMsg += `\n[EVENT-ERROR-DETAIL] message=${JSON.stringify(errorVal.message)}, stack=${JSON.stringify(errorVal.stack)}, toString=${JSON.stringify(errorVal.toString())}, keys=${Object.keys(errorVal).join(',')}`;
+              // Try to enumerate all own properties
+              for (const k of Object.getOwnPropertyNames(errorVal)) {
+                try {
+                  const v = errorVal[k];
+                  if (typeof v !== 'function') {
+                    // Serialize nested objects fully (depth 5 max)
+                    let serialized;
+                    try {
+                      serialized = JSON.stringify(v, (key, val) => {
+                        if (typeof val === 'object' && val !== null) {
+                          return val; // Keep nested objects
+                        }
+                        return val;
+                      }, 2).slice(0, 2000);
+                    } catch (e2) {
+                      serialized = `[unserializable: ${typeof v}]`;
+                    }
+                    logMsg += `\n[EVENT-ERROR-PROP] ${k}=${serialized}`;
+                  }
+                } catch (e2) {}
+              }
+            } else {
+              logMsg += `\n[EVENT-ERROR-DETAIL] error=${JSON.stringify(errorVal)}`;
+            }
+          } else {
+            logMsg += `\n[EVENT-ERROR-DETAIL] error is null/undefined`;
+          }
+          // Also log sessionID
+          logMsg += `\n[EVENT-ERROR-DETAIL] sessionID=${JSON.stringify(props.sessionID)}`;
+        }
+        fs.appendFileSync(getLogFilePath(directory), logMsg + '\n', 'utf8');
+      } catch (e) {}
+
       let isIdle = false;
       let sessionId = null;
 
@@ -211,7 +262,13 @@ ${toolMapping}
           fs.appendFileSync(getLogFilePath(directory), `[EVENT] Triggering loop for sessionId: ${sessionId}\n`, 'utf8');
         } catch (e) {}
         const loopJsonPath = path.join(vcorp.vSkillsDir, 'loop.json');
-        await handleSessionIdle(client, directory, sessionId, loopJsonPath);
+        try {
+          await handleSessionIdle(client, directory, sessionId, loopJsonPath);
+        } catch (err) {
+          try {
+            fs.appendFileSync(getLogFilePath(directory), `[EVENT-ERROR] handleSessionIdle failed: ${err.message}\n${err.stack}\n`, 'utf8');
+          } catch (e) {}
+        }
       }
     },
     // ------------------------
@@ -246,19 +303,25 @@ ${toolMapping}
       // }
 
       // --- ADDED TRANSFORMATION/SAFEGUARDS ---
-      await handleMessageTransform(input, output, {
-        roleJsonPath: vcorp.roleJsonPath,
-        roleDir: vcorp.roleDir,
-        definedRoles: vcorp.getDefinedRoles(),
-        debugLog: (msg) => {
-          try {
-            fs.appendFileSync(getLogFilePath(directory), `[VCORP-TRANSFORM] ${msg}\n`, 'utf8');
-          } catch (e) {}
-        },
-        getBootstrapContent,
-        superpowersSkillsDir,
-        loopJsonPath: path.join(vcorp.vSkillsDir, 'loop.json')
-      });
+      try {
+        await handleMessageTransform(input, output, {
+          roleJsonPath: vcorp.roleJsonPath,
+          roleDir: vcorp.roleDir,
+          definedRoles: vcorp.getDefinedRoles(),
+          debugLog: (msg) => {
+            try {
+              fs.appendFileSync(getLogFilePath(directory), `[VCORP-TRANSFORM] ${msg}\n`, 'utf8');
+            } catch (e) {}
+          },
+          getBootstrapContent,
+          superpowersSkillsDir,
+          loopJsonPath: path.join(vcorp.vSkillsDir, 'loop.json')
+        });
+      } catch (err) {
+        try {
+          fs.appendFileSync(getLogFilePath(directory), `[TRANSFORM-ERROR] ${err.message}\n${err.stack}\n`, 'utf8');
+        } catch (e) {}
+      }
       // ----------------------------------------
     }
   };
