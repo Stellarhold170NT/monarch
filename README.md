@@ -31,7 +31,7 @@ An advanced AI Agent system built for absolute codebase control, enabling a fast
 
 ---
 
-## 1. Activation States
+## Activation States
 
 | State | Description |
 |-------|-------------|
@@ -42,7 +42,7 @@ An advanced AI Agent system built for absolute codebase control, enabling a fast
 
 ---
 
-## 2. The Shadow Army (Sub-Agents)
+## The Shadow Army (Sub-Agents)
 
 | Agent | Role | Profile |
 |-------|------|---------|
