@@ -159,10 +159,6 @@ ${toolMapping}
       let isIdle = false;
       let sessionId = null;
 
-      try {
-        fs.appendFileSync(getLogFilePath(directory), `[EVENT] Type: ${input.event.type}, Properties: ${JSON.stringify(input.event.properties)}\n`, 'utf8');
-      } catch (e) {}
-
       // Detailed human-readable logging for tools, skills, reasoning, and responses
       try {
         const props = input.event.properties || {};
