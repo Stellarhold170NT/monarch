@@ -18,6 +18,27 @@ function logDebug(msg) {
   } catch (e) {}
 }
 
+let _encoder = null;
+async function getEncoder() {
+  if (_encoder) return _encoder;
+  try {
+    const { getEncoding } = await import('js-tiktoken');
+    _encoder = getEncoding('cl100k_base');
+  } catch (e) {
+    logDebug(`tiktoken load failed: ${e.message}, falling back to approx`);
+  }
+  return _encoder;
+}
+
+async function countTokens(text) {
+  if (!text) return 0;
+  const enc = await getEncoder();
+  if (enc) {
+    try { return enc.encode(text).length; } catch {}
+  }
+  return Math.ceil(text.length / 4);
+}
+
 export const MONARCH_METADATA = {
   category: "utility",
   cost: "EXPENSIVE",
@@ -25,7 +46,7 @@ export const MONARCH_METADATA = {
   triggers: [],
 };
 
-export function buildDynamicMonarchPrompt(
+export async function buildDynamicMonarchPrompt(
   model,
   availableAgents,
   availableTools = [],
@@ -54,14 +75,24 @@ export function buildDynamicMonarchPrompt(
 
   const fullPrompt = `${identityText}\n\n${exploreText}\n\n${execText}\n\n${oracleText}\n\n${consensusText}\n\n${taskMgmtText}\n\n${toneText}`;
 
-  const estimateTokens = (s) => Math.round(s.length / 4);
-  logDebug(`Prompt sections: identity=${identityText.length}B/~${estimateTokens(identityText)}tok, explore=${exploreText.length}B/~${estimateTokens(exploreText)}tok, exec=${execText.length}B/~${estimateTokens(execText)}tok, oracle=${oracleText.length}B/~${estimateTokens(oracleText)}tok, consensus=${consensusText.length}B/~${estimateTokens(consensusText)}tok, taskMgmt=${taskMgmtText.length}B/~${estimateTokens(taskMgmtText)}tok, tone=${toneText.length}B/~${estimateTokens(toneText)}tok`);
-  logDebug(`Total prompt length: ${fullPrompt.length}B (~${estimateTokens(fullPrompt)}tok, ${(fullPrompt.length / 1024).toFixed(1)}KB)`);
+  const [identityTok, exploreTok, execTok, oracleTok, consensusTok, taskMgmtTok, toneTok, totalTok] = await Promise.all([
+    countTokens(identityText),
+    countTokens(exploreText),
+    countTokens(execText),
+    countTokens(oracleText),
+    countTokens(consensusText),
+    countTokens(taskMgmtText),
+    countTokens(toneText),
+    countTokens(fullPrompt),
+  ]);
+
+  logDebug(`Prompt sections: identity=${identityText.length}B/${identityTok}tok, explore=${exploreText.length}B/${exploreTok}tok, exec=${execText.length}B/${execTok}tok, oracle=${oracleText.length}B/${oracleTok}tok, consensus=${consensusText.length}B/${consensusTok}tok, taskMgmt=${taskMgmtText.length}B/${taskMgmtTok}tok, tone=${toneText.length}B/${toneTok}tok`);
+  logDebug(`Total prompt length: ${fullPrompt.length}B (${totalTok}tok, ${(fullPrompt.length / 1024).toFixed(1)}KB)`);
 
   return fullPrompt;
 }
 
-export function createMonarchAgent(
+export async function createMonarchAgent(
   model,
   availableAgents = [],
   availableToolNames = [],
@@ -74,7 +105,7 @@ export function createMonarchAgent(
   const categories = availableCategories ?? [];
   const agents = availableAgents ?? [];
 
-  const prompt = buildDynamicMonarchPrompt(
+  const prompt = await buildDynamicMonarchPrompt(
     model,
     agents,
     tools,

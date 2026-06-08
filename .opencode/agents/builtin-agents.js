@@ -159,7 +159,7 @@ export async function registerAgents(config, directory) {
 
   // Registry of agent names to their factories
   const agentFactories = {
-    monarch: (model) => createMonarchAgent(model, availableAgents, tools, skills, categories, useTaskSystem),
+    monarch: async (model) => createMonarchAgent(model, availableAgents, tools, skills, categories, useTaskSystem),
     igris: (model) => createIgrisAgent(model),
   };
 
@@ -168,7 +168,7 @@ export async function registerAgents(config, directory) {
     try {
       logToDebug(directory, `Building agent config for: ${name}`);
       // 1. Build default config from factory
-      let agentConfig = factory(currentModel);
+      let agentConfig = await factory(currentModel);
 
       // 2. Merge overrides if defined
       const override = allOverrides[name];
