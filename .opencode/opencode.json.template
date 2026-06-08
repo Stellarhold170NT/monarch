@@ -1,0 +1,15 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "aigateway": {
+      "models": {
+        "MiniMax/MiniMax-M2.7": {}
+      },
+      "options": {
+        "baseURL": "$env:OPENCODE_BASE_URL",
+        "apiKey": "$env:OPENCODE_API_KEY"
+      }
+    }
+  },
+  "permission": "allow"
+}
