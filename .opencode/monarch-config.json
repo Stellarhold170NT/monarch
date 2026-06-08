@@ -1,0 +1,25 @@
+{
+  "agents": {
+    "monarch": {
+      "temperature": 0.2
+    },
+    "igris": {
+      "temperature": 0.1,
+      "maxTokens": 4096
+    }
+  },
+  "categories": {
+    "visual-engineering": {
+      "description": "Frontend, UI/UX, styling, animations, layout, design tasks"
+    },
+    "ultrabrain": {
+      "description": "Hard logic, architecture decisions, algorithms, complex reasoning"
+    },
+    "deep": {
+      "description": "Autonomous research, multi-step problem-solving, end-to-end implementation"
+    },
+    "quick": {
+      "description": "Single-file typo, trivial config change, simple modifications"
+    }
+  }
+}
