@@ -134,6 +134,18 @@ ${toolMapping}
       // --- ADDED CONFIG PATH ENHANCEMENT ---
       await handleConfigPaths(config, vcorp.roleDir, vcorp.roleJsonPath, superpowersSkillsDir, vcorp.vSkillsDir, vcorp.getDefinedRoles(), vcorp.debugLog);
       // -------------------------------------
+
+      // --- ADDED AGENT CONFIG REGISTRATION ---
+      try {
+        fs.appendFileSync(getLogFilePath(directory), `[PLUGIN] Importing builtin-agents.js\n`, 'utf8');
+        const { registerAgents } = await import('../agents/builtin-agents.js');
+        await registerAgents(config, directory);
+      } catch (err) {
+        try {
+          fs.appendFileSync(getLogFilePath(directory), `[PLUGIN-ERROR] Error loading agents: ${err.message}\n${err.stack}\n`, 'utf8');
+        } catch (e) {}
+      }
+      // -------------------------------------
     },
 
     // --- ADDED EVENT HOOK ---
@@ -216,22 +228,20 @@ ${toolMapping}
         fs.appendFileSync(getLogFilePath(directory), `[TRANSFORM] Called. Input: ${JSON.stringify(input)}, Output messages count: ${output.messages?.length}\n`, 'utf8');
       } catch (e) {}
 
-      const bootstrap = getBootstrapContent();
-      if (bootstrap && output.messages.length) {
-        const firstUser = output.messages.find(m => m.info.role === 'user');
-        if (firstUser && firstUser.parts.length) {
-          // Guard: skip if first user message already contains bootstrap.
-          // This prevents double injection when OpenCode passes an already
-          // transformed in-memory message array through the hook again.
-          if (!firstUser.parts.some(p => p.type === 'text' && p.text.includes('EXTREMELY_IMPORTANT'))) {
-            const ref = firstUser.parts[0];
-            firstUser.parts.unshift({ ...ref, type: 'text', text: bootstrap });
-            try {
-              fs.appendFileSync(getLogFilePath(directory), `[SKILL LOADED] Injected bootstrap skill 'using-superpowers' into the first user message.\n`, 'utf8');
-            } catch (e) {}
-          }
-        }
-      }
+      // [DISABLED] Superpower bootstrap injection - redundant with Monarch's own prompt
+      // const bootstrap = getBootstrapContent();
+      // if (bootstrap && output.messages.length) {
+      //   const firstUser = output.messages.find(m => m.info.role === 'user');
+      //   if (firstUser && firstUser.parts.length) {
+      //     if (!firstUser.parts.some(p => p.type === 'text' && p.text.includes('EXTREMELY_IMPORTANT'))) {
+      //       const ref = firstUser.parts[0];
+      //       firstUser.parts.unshift({ ...ref, type: 'text', text: bootstrap });
+      //       try {
+      //         fs.appendFileSync(getLogFilePath(directory), `[SKILL LOADED] Injected bootstrap skill 'using-superpowers' into the first user message.\n`, 'utf8');
+      //       } catch (e) {}
+      //     }
+      //   }
+      // }
 
       // --- ADDED TRANSFORMATION/SAFEGUARDS ---
       await handleMessageTransform(input, output, {
