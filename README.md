@@ -4,7 +4,22 @@
   <img src="assets/logo.svg" alt="Monarch Logo" width="400"/>
 </p>
 
+<div align="center">
+
+[![GitHub Release](https://img.shields.io/github/v/release/Stellarhold170NT/monarch?color=8b0000&labelColor=black&logo=github&style=flat-square)](https://github.com/Stellarhold170NT/monarch/releases)
+[![GitHub Stars](https://img.shields.io/github/stars/Stellarhold170NT/monarch?color=ffcb47&labelColor=black&style=flat-square)](https://github.com/Stellarhold170NT/monarch/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/Stellarhold170NT/monarch?color=8ae8ff&labelColor=black&style=flat-square)](https://github.com/Stellarhold170NT/monarch/network/members)
+[![License](https://img.shields.io/badge/license-MIT-white?labelColor=black&style=flat-square)](https://github.com/Stellarhold170NT/monarch/blob/main/LICENSE)
+
+</div>
+
 An advanced AI Agent system built for absolute codebase control, enabling a fast workflow where you command and the codebase adapts.
+
+> Stop renting single, overpriced models. Inspired by *Solo Leveling*, **Monarch** is about absolute authority.
+>
+> You don't need expensive monolithic systems; you need a **Shadow Army** of specialized agents harnessed to work exactly as you command.
+>
+> Issue a single order from your terminal, and watch the entire open-source ecosystem align to conquer your codebase.
 
 ---
 
