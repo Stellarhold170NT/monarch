@@ -133,6 +133,12 @@ ${toolMapping}
 
       // --- ADDED CONFIG PATH ENHANCEMENT ---
       await handleConfigPaths(config, vcorp.roleDir, vcorp.roleJsonPath, superpowersSkillsDir, vcorp.vSkillsDir, vcorp.getDefinedRoles(), vcorp.debugLog);
+
+      // Register workspace-level .agents/skills/ path for monarch's delegation guide
+      const workspaceSkillsDir = path.resolve(directory, '..', '.agents', 'skills');
+      if (fs.existsSync(workspaceSkillsDir) && !config.skills.paths.includes(workspaceSkillsDir)) {
+        config.skills.paths.push(workspaceSkillsDir);
+      }
       // -------------------------------------
 
       // --- ADDED AGENT CONFIG REGISTRATION ---

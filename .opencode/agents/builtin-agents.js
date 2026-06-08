@@ -63,8 +63,9 @@ function loadCategories(directory) {
 /**
  * Discovers available skills by scanning skill directories for SKILL.md files.
  * Falls back to a basic list from monarch-config.json if available.
+ * Also scans registered OpenCode skill paths (config.skills.paths).
  */
-function loadSkills(directory) {
+function loadSkills(directory, registeredPaths = []) {
   const config = loadMonarchConfig(directory);
   if (Array.isArray(config.skills)) {
     return config.skills;
@@ -76,6 +77,7 @@ function loadSkills(directory) {
   const searchPaths = [
     path.join(directory, '.agents', 'skills'),
     path.join(directory, '.opencode', 'skills'),
+    ...registeredPaths,
   ];
 
   for (const dir of searchPaths) {
@@ -142,7 +144,7 @@ export async function registerAgents(config, directory) {
   ];
 
   const tools = config.tools ? Object.keys(config.tools) : [];
-  const skills = loadSkills(directory);
+  const skills = loadSkills(directory, config.skills?.paths || []);
   const rawCategories = loadCategories(directory);
   const categories = Object.entries(rawCategories).map(([name, cat]) => ({
     name,
