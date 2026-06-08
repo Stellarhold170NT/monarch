@@ -54,8 +54,9 @@ export function buildDynamicMonarchPrompt(
 
   const fullPrompt = `${identityText}\n\n${exploreText}\n\n${execText}\n\n${oracleText}\n\n${consensusText}\n\n${taskMgmtText}\n\n${toneText}`;
 
-  logDebug(`Prompt sections: identity=${identityText.length}B, explore=${exploreText.length}B, exec=${execText.length}B, oracle=${oracleText.length}B, consensus=${consensusText.length}B, taskMgmt=${taskMgmtText.length}B, tone=${toneText.length}B`);
-  logDebug(`Total prompt length: ${fullPrompt.length}B (${(fullPrompt.length / 1024).toFixed(1)}KB)`);
+  const estimateTokens = (s) => Math.round(s.length / 4);
+  logDebug(`Prompt sections: identity=${identityText.length}B/~${estimateTokens(identityText)}tok, explore=${exploreText.length}B/~${estimateTokens(exploreText)}tok, exec=${execText.length}B/~${estimateTokens(execText)}tok, oracle=${oracleText.length}B/~${estimateTokens(oracleText)}tok, consensus=${consensusText.length}B/~${estimateTokens(consensusText)}tok, taskMgmt=${taskMgmtText.length}B/~${estimateTokens(taskMgmtText)}tok, tone=${toneText.length}B/~${estimateTokens(toneText)}tok`);
+  logDebug(`Total prompt length: ${fullPrompt.length}B (~${estimateTokens(fullPrompt)}tok, ${(fullPrompt.length / 1024).toFixed(1)}KB)`);
 
   return fullPrompt;
 }
