@@ -95,6 +95,17 @@ export class Sanitizer {
     mode?: Mode,
     sessionId?: string,
   ): SanitizeResult {
+    // Global toggle — if disabled, return text unchanged
+    if (this.config.enabled === false) {
+      return {
+        text,
+        original: text,
+        entities: [],
+        tokens: {},
+        score: 0,
+      };
+    }
+
     mode = mode ?? Mode.FAST;
     const originalText = text;
     const tokens: Record<string, string> = {};

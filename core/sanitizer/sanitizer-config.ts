@@ -31,6 +31,8 @@ export interface RuleConfig {
 
 /** Top-level config shape. */
 export interface SanitizerConfig {
+  /** Global on/off toggle. When false, sanitize() returns text unchanged. */
+  enabled?: boolean;
   mode?: "fast";
   /** What to do on detection: "redact" replaces with token, "warn" leaves as-is */
   onDetect?: "redact" | "warn";
@@ -45,6 +47,7 @@ export type SanitizerOptions = Partial<SanitizerConfig>;
 
 /** Default config — everything enabled. */
 export const DEFAULT_CONFIG: SanitizerConfig = {
+  enabled: true,
   mode: "fast",
   onDetect: "redact",
   rules: {},
