@@ -33,12 +33,25 @@ export const handleMessageTransform = async (input, output, {
         const isVLoop = /\b(v-loop)\b/i.test(textToCheck) || textToCheck.includes('/v-loop');
 
         if (isUlw || isVLoop) {
+          // Extract current sessionId early so we can detect stale loops
+          let sessionId = null;
+          if (output.messages && output.messages.length > 0) {
+            const firstMsg = output.messages[0];
+            sessionId = firstMsg.sessionID || (firstMsg.info && (firstMsg.info.sessionID || firstMsg.info.id));
+          }
+
           let isAlreadyActive = false;
           if (fs.existsSync(loopJsonPath)) {
             try {
               const currentState = JSON.parse(fs.readFileSync(loopJsonPath, 'utf8'));
               if (currentState && currentState.active) {
-                isAlreadyActive = true;
+                // Only consider active if it's from the SAME session.
+                // Stale loop.json from a dead session blocks new sessions — reset it.
+                if (currentState.sessionId && currentState.sessionId === sessionId) {
+                  isAlreadyActive = true;
+                } else {
+                  debugLog(`Stale loop detected: stored sessionId=${currentState.sessionId}, current sessionId=${sessionId}. Resetting for new session.`);
+                }
               }
             } catch (e) { }
           }
@@ -55,12 +68,6 @@ export const handleMessageTransform = async (input, output, {
               } else {
                 cleanPrompt = firstTextPart.text;
               }
-            }
-
-            let sessionId = null;
-            if (output.messages && output.messages.length > 0) {
-              const firstMsg = output.messages[0];
-              sessionId = firstMsg.sessionID || (firstMsg.info && (firstMsg.info.sessionID || firstMsg.info.id));
             }
 
             const initialState = {

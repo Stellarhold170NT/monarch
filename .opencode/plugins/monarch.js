@@ -166,6 +166,8 @@ ${toolMapping}
     event: async (input) => {
       try {
         const eventType = input.event?.type;
+        // Skip high-frequency delta events that bloat the log
+        if (eventType === 'message.part.delta') return;
         const props = input.event?.properties || {};
         let logMsg = `[EVENT-HOOK] type=${eventType}, properties keys=${Object.keys(props).join(',')}`;
         if (eventType === 'session.error') {
