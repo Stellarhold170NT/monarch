@@ -49,3 +49,33 @@
 | **Igris** | アーキテクト | 精度、厳密な論理検証、クリーンなリファクタリングに特化。 |
 | **Beru** | 自己修復 | ランタイム実行を監視し、エラーログをスキャン、自動修正。 |
 | **Greed** | パージエンジン | デッドコード、ボイラープレート、技術負債を容赦なく削除。 |
+
+---
+
+## OpenCode 統合
+
+Monarch は OpenCode プラグインとして使用できます。プロジェクトの `opencode.json` に追加してください：
+
+### Git 経由（推奨）
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "monarch@git+https://github.com/Stellarhold170NT/monarch.git"
+  ]
+}
+```
+
+### ローカルパス経由（開発用）
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "../monarch"
+  ]
+}
+```
+
+プロジェクトルートに `opencode.json` を作成または編集し、OpenCode を再起動してください。Monarch のエージェント（Igris、Beru、Greed）と全スキルが自動登録されます。

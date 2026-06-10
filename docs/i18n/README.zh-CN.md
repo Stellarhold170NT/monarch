@@ -49,3 +49,33 @@
 | **Igris** | 架构师 | 专注精确、严格的逻辑验证和干净重构。 |
 | **Beru** | 自愈者 | 监控运行时执行，扫描错误日志，自动修复 bug。 |
 | **Greed** | 清除引擎 | 无情删除死代码、样板和技术债务。 |
+
+---
+
+## OpenCode 集成
+
+Monarch 可作为 OpenCode 插件使用。在你的项目 `opencode.json` 中添加配置：
+
+### 通过 Git（推荐）
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "monarch@git+https://github.com/Stellarhold170NT/monarch.git"
+  ]
+}
+```
+
+### 通过本地路径（开发用）
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "../monarch"
+  ]
+}
+```
+
+在项目根目录创建或编辑 `opencode.json`，然后重启 OpenCode。Monarch 的代理（Igris、Beru、Greed）和所有技能将自动注册。

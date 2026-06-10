@@ -49,3 +49,33 @@
 | **Igris** | 아키텍트 | 정밀함, 엄격한 논리 검증, 깔끔한 리팩토링에 집중합니다. |
 | **Beru** | 자가 치유 | 런타임 실행을 모니터링하고, 에러 로그를 스캔하여 자동으로 버그를 수정합니다. |
 | **Greed** | 제거 엔진 | 데드 코드, 보일러플레이트, 기술 부채를 무자비하게 삭제합니다. |
+
+---
+
+## OpenCode 통합
+
+Monarch는 OpenCode 플러그인으로 사용할 수 있습니다. 프로젝트의 `opencode.json`에 추가하세요:
+
+### Git으로 (권장)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "monarch@git+https://github.com/Stellarhold170NT/monarch.git"
+  ]
+}
+```
+
+### 로컬 경로로 (개발용)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "../monarch"
+  ]
+}
+```
+
+프로젝트 루트에 `opencode.json`을 생성하거나 편집한 후 OpenCode를 재시작하세요. Monarch의 에이전트(Igris, Beru, Greed)와 모든 스킬이 자동으로 등록됩니다.

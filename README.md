@@ -49,3 +49,33 @@ An advanced AI Agent system built for absolute codebase control, enabling a fast
 | **Igris** | Architect | Focuses on precision, strict logic validation, and clean refactoring. |
 | **Beru** | Self-Healing | Monitors runtime execution, scans error logs, and automatically fixes bugs. |
 | **Greed** | Purge Engine | Ruthlessly deletes dead code, boilerplates, and technical debt. |
+
+---
+
+## OpenCode Integration
+
+Monarch can be used as an OpenCode plugin. Add it to your project's `opencode.json`:
+
+### Via Git (recommended)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "monarch@git+https://github.com/Stellarhold170NT/monarch.git"
+  ]
+}
+```
+
+### Via Local Path (for development)
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "../monarch"
+  ]
+}
+```
+
+Create or edit `opencode.json` in your project's root directory, then restart OpenCode. Monarch's agents (Igris, Beru, Greed) and all skills will be automatically registered.

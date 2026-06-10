@@ -78,7 +78,36 @@ export const SuperpowersPlugin = async ({ client, directory }) => {
 
   // --- ADDED setup ---
   const vcorp = initVCorpRoles(directory, configDir);
-  const { sanitizer } = initSanitizer(directory, path.join(directory, 'core', 'sanitizer'));
+  const { sanitizer } = initSanitizer(directory, path.join(directory, '.opencode'));
+
+  // Auto-create monarch-config.json in project's .opencode/ if not exists
+  const monarchConfigPath = path.join(directory, '.opencode', 'monarch-config.json');
+  if (!fs.existsSync(monarchConfigPath)) {
+    // Use monarch's own config as template
+    const selfConfigPath = path.join(__dirname, '..', 'monarch-config.json');
+    try {
+      if (fs.existsSync(selfConfigPath)) {
+        const templateContent = fs.readFileSync(selfConfigPath, 'utf8');
+        fs.writeFileSync(monarchConfigPath, templateContent, 'utf8');
+      } else {
+        fs.writeFileSync(monarchConfigPath, JSON.stringify({
+          agents: {
+            monarch: { temperature: 0.2 },
+            igris: { temperature: 0.1, maxTokens: 4096 }
+          },
+          categories: {
+            "visual-engineering": { description: "Frontend, UI/UX, styling, animations, layout, design tasks" },
+            "ultrabrain": { description: "Hard logic, architecture decisions, algorithms, complex reasoning" },
+            "deep": { description: "Autonomous research, multi-step problem-solving, end-to-end implementation" },
+            "quick": { description: "Single-file typo, trivial config change, simple modifications" }
+          }
+        }, null, 2), 'utf8');
+      }
+      fs.appendFileSync(getLogFilePath(directory), `[CONFIG] Auto-created monarch-config.json at ${monarchConfigPath}\n`, 'utf8');
+    } catch (e) {
+      fs.appendFileSync(getLogFilePath(directory), `[CONFIG] Failed to create monarch-config.json: ${e.message}\n`, 'utf8');
+    }
+  }
 
   // Wrap sanitizer.sanitize to log all redaction activity to debug log
   if (sanitizer && typeof sanitizer.sanitize === 'function') {
