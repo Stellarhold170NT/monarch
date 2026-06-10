@@ -5,12 +5,36 @@ export const handleMessageTransform = async (input, output, {
   roleJsonPath,
   roleDir,
   definedRoles,
+  sanitizer,
   debugLog,
   getBootstrapContent,
   superpowersSkillsDir,
   loopJsonPath
 }) => {
   debugLog(`transform called. messages count: ${output.messages.length}`);
+
+  // --- SANITIZATION: PII REDACTION ---
+  // Sanitize user messages to prevent PII/secrets from being sent to LLM
+  if (sanitizer) {
+    try {
+      const userMessages = output.messages.filter(m => m.info.role === 'user');
+      for (const msg of userMessages) {
+        for (const part of msg.parts) {
+          if (part.type === 'text' && part.text) {
+            const result = sanitizer.sanitize(part.text);
+            if (result.score > 0) {  // Only update if PII was detected
+              const entityTypes = [...new Set(result.entities.map(e => e.entityType))];
+              part.text = result.text;
+              debugLog(`Sanitized message: redacted ${result.entities.length} entities (score: ${result.score.toFixed(2)}, types: ${entityTypes.join(', ')})`);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      debugLog(`Sanitization error: ${err.message}`);
+    }
+  }
+  // -----------------------------------
 
   // --- LOOP DETECT & INITIALIZATION ---
   if (loopJsonPath) {

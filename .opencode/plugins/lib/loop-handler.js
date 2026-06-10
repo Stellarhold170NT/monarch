@@ -226,7 +226,7 @@ export const handleSessionIdle = async (client, directory, sessionId, loopJsonPa
             fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8');
           } catch (e) { }
 
-          const taskLabel = state.prompt.split('\n')[0].slice(0, 120);
+          const taskLabel = state.prompt;
           const verificationPrompt = `[V-AGENT SYSTEM - ULW VERIFICATION LƯỢT ${state.iteration}/${maxIterations}]
 You reported DONE. REQUIRED NOW:
 - DO NOT self-verify. Call **Igris** (subagent_type="igris") to review the work.
@@ -259,7 +259,7 @@ Task: ${taskLabel}`;
             fs.writeFileSync(loopJsonPath, JSON.stringify(state, null, 2), 'utf8');
           } catch (e) { }
 
-          const taskLabel = state.prompt.split('\n')[0].slice(0, 120);
+          const taskLabel = state.prompt;
           const verificationPrompt = `[V-AGENT SYSTEM - ULW VERIFICATION LƯỢT ${state.iteration}/${maxIterations}]
 You reported DONE again after fixing. REQUIRED NOW:
 - DO NOT self-verify. Call **Igris** (subagent_type="igris") to re-review.
@@ -389,7 +389,7 @@ Task: ${taskLabel}`;
 
     // System directive: simple continuation WITHOUT full spec to avoid Phase 0 verb pollution.
     // Agent already has the full spec in conversation history.
-    const taskLabel = state.prompt.split('\n')[0].slice(0, 120);
+    const taskLabel = state.prompt;
     const continuationPrompt = `[V-AGENT SYSTEM - ULW LOOP LƯỢT ${state.iteration}/${maxIterations}]
 Continue working until the task is fully complete. When done, output: <promise>DONE</promise>.
 

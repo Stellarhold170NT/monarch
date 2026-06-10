@@ -15,6 +15,7 @@ import { initVCorpRoles } from './lib/setup.js';
 import { handleConfigPaths } from './lib/config-handler.js';
 import { handleMessageTransform } from './lib/message-transformer.js';
 import { handleSessionIdle } from './lib/loop-handler.js';
+import { initSanitizer } from './lib/sanitizer-init.js';
 // --------------------
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,6 +78,27 @@ export const SuperpowersPlugin = async ({ client, directory }) => {
 
   // --- ADDED setup ---
   const vcorp = initVCorpRoles(directory, configDir);
+  const { sanitizer } = initSanitizer(directory, path.join(directory, 'core', 'sanitizer'));
+
+  // Wrap sanitizer.sanitize to log all redaction activity to debug log
+  if (sanitizer && typeof sanitizer.sanitize === 'function') {
+    const _originalSanitize = sanitizer.sanitize.bind(sanitizer);
+    sanitizer.sanitize = (text) => {
+      const result = _originalSanitize(text);
+      if (result.score > 0) {
+        const entityTypes = [...new Set(result.entities.map(e => e.entityType))];
+        try {
+          fs.appendFileSync(
+            getLogFilePath(directory),
+            `[SANITIZER] Redacted ${result.entities.length} entities | score=${result.score.toFixed(2)} | types=[${entityTypes.join(', ')}]\n`,
+            'utf8'
+          );
+        } catch (e) {}
+      }
+      return result;
+    };
+  }
+
   try {
     fs.writeFileSync(getLogFilePath(directory), `[INIT] V-Agent Debug Log Initialized\n`, 'utf8');
   } catch (e) {}
@@ -310,6 +332,7 @@ ${toolMapping}
           roleJsonPath: vcorp.roleJsonPath,
           roleDir: vcorp.roleDir,
           definedRoles: vcorp.getDefinedRoles(),
+          sanitizer,
           debugLog: (msg) => {
             try {
               fs.appendFileSync(getLogFilePath(directory), `[VCORP-TRANSFORM] ${msg}\n`, 'utf8');
