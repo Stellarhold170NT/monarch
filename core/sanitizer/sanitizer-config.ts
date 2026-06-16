@@ -6,8 +6,8 @@
  * - Add custom regex patterns for proprietary/internal PII formats
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { readFileSync, existsSync } from "fs";
+import { resolve } from "path";
 import { EntityType } from "./entities.js";
 
 /** Shape of each custom pattern entry in config. */
@@ -47,7 +47,7 @@ export type SanitizerOptions = Partial<SanitizerConfig>;
 
 /** Default config — everything enabled. */
 export const DEFAULT_CONFIG: SanitizerConfig = {
-  enabled: false,
+  enabled: true,
   mode: "fast",
   onDetect: "redact",
   rules: {},
