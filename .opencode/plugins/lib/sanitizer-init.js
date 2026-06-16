@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Default config content (copied from sanitizer-config.json template)
 const DEFAULT_SANITIZER_CONFIG = {
-  enabled: true,
+  enabled: false,
   mode: "fast",
   onDetect: "redact",
   rules: {

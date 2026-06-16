@@ -1,5 +1,5 @@
 {
-  "enabled": true,
+  "enabled": false,
   "mode": "fast",
   "onDetect": "redact",
   "rules": {

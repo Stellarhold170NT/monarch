@@ -47,7 +47,7 @@ export type SanitizerOptions = Partial<SanitizerConfig>;
 
 /** Default config — everything enabled. */
 export const DEFAULT_CONFIG: SanitizerConfig = {
-  enabled: true,
+  enabled: false,
   mode: "fast",
   onDetect: "redact",
   rules: {},

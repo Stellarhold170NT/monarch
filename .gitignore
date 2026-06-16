@@ -7,3 +7,7 @@ inspo
 triage/
 .v-skills/
 v-agent-debug.log
+temp/
+__pycache__/
+*.pyc
+

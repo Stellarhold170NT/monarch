@@ -123,3 +123,60 @@ Khi khai báo hoặc chỉnh sửa vai trò/kỹ năng trong dự án V-Corp, Ag
 *   **Đường dẫn:** `project/.v-skills/_shared/<tên-skill>/SKILL.md`
 *   **Quy tắc:** Được nạp vô điều kiện cho tất cả các vai trò. Không cần sử dụng tiền tố vai trò cho tên skill (Ví dụ: `project/.v-skills/_shared/git-flow/SKILL.md` với `name: git-flow`).
 
+---
+
+## 5. HỆ THỐNG ĐÁNH GIÁ TUÂN THỦ VAI TRÒ (ROLE COMPLIANCE EVALUATION ENGINE)
+
+Để đảm bảo Agent thực sự tuân thủ các quy định trong `SKILL.md` dưới áp lực công việc thực tế, chúng ta sử dụng kiến trúc **Dual-Agent Auditor** thông qua script kiểm thử tự động.
+
+### A. Vị trí File
+*   **Script chính:** [eval_role.py](scripts/eval_role.py)
+*   **Thư mục chứa:** `skills/create-role/scripts/`
+
+### B. Kiến trúc Dual-Agent Auditor
+Hệ thống chia làm 2 giai đoạn chạy độc lập để đảm bảo khách quan:
+1.  **Phase 1 (Agent A - Tested Agent):** Agent A được nạp `SKILL.md` cần test làm bối cảnh hệ thống, sau đó nhận yêu cầu tự nhiên từ nhà phát triển (không kèm gợi ý chấm thi). Agent A thực thi hoặc đưa ra quyết định từ chối.
+2.  **Phase 2 (Agent B - Judge):** Một LLM giám khảo độc lập nhận vào: luật lệ (`SKILL.md`), kịch bản test, chi tiết phản hồi của Agent A và **toàn bộ lịch sử các lệnh/tool call mà Agent A đã gọi**. Judge phân tích và trả về kết quả định dạng `<>BLOCK</>` (Thất bại), `<>FLAG</>` (Rủi ro/Mơ hồ), hoặc `<>DONE</>` (Thành công/Tuân thủ tốt).
+
+### C. Cách chạy Đánh giá (CLI Command)
+Chạy script từ thư mục gốc của repository:
+
+```powershell
+python skills/create-role/scripts/eval_role.py `
+  --test-set <đường-dẫn-file-test.json> `
+  --role-path <thư-mục-chứa-role-cần-test> `
+  --log-dir <thư-mục-lưu-log-chi-tiết> `
+  --num-workers 3 `
+  --timeout 180
+```
+
+#### Các tham số cấu hình:
+*   `--test-set` (Bắt buộc): Đường dẫn đến file JSON chứa danh sách các kịch bản test.
+*   `--role-path` (Bắt buộc): Thư mục của vai trò cần kiểm tra (ví dụ: `skills/role-be`), nơi chứa file `SKILL.md` định nghĩa vai trò đó.
+*   `--log-dir` (Tùy chọn): Thư mục để ghi nhật ký chi tiết từng case chạy (bao gồm response của Agent A, danh sách tool call, phản hồi của Judge và file JSON summary).
+*   `--output` (Tùy chọn): Đường dẫn tùy chỉnh để lưu file kết quả JSON (mặc định: tự động sinh file dạng `<test-set>.results.json` bên cạnh file test set).
+*   `--num-workers` (Tùy chọn): Số luồng chạy song song (mặc định: `3`).
+*   `--timeout` (Tùy chọn): Giới hạn thời gian (giây) tối đa cho mỗi giai đoạn chạy của Agent/Judge (mặc định: `180`).
+*   `--model` (Tùy chọn): Chỉ định model LLM sử dụng cho cả hai Agent. Có thể override riêng lẻ bằng `--model-agent` hoặc `--model-judge`.
+
+### D. Định dạng File Test Case (Test Set JSON)
+Mỗi file test set chứa một mảng JSON các test case có cấu trúc:
+
+```json
+[
+  {
+    "id": "sb4-baseline-01",
+    "category": "baseline",
+    "constraint": "Mô tả quy tắc cụ thể cần kiểm tra (ví dụ: MUST-DO-01)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Tiêu đề kịch bản",
+      "user_request": "Yêu cầu tự nhiên của lập trình viên đóng vai trò mồi bẫy",
+      "code_context": "Bối cảnh mã nguồn hoặc cấu hình hiện tại của dự án"
+    },
+    "expected_action": "BLOCK | ALLOW",
+    "pass_condition": "Điều kiện chi tiết để Judge đối chiếu và chấm đạt"
+  }
+]
+```
+

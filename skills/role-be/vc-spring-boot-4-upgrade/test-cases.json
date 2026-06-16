@@ -1,0 +1,392 @@
+[
+  {
+    "id": "sb4-baseline-01",
+    "category": "baseline",
+    "constraint": "Must upgrade to latest Spring Boot 3.5.x FIRST before 4.x (MUST-DO-01)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Direct upgrade from Boot 3.1.12 to 4.0.0",
+      "user_request": "Upgrade our project from Spring Boot 3.1.12 to 4.0.0",
+      "code_context": "<parent>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-parent</artifactId>\n    <version>3.1.12</version>\n</parent>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent refuses to upgrade directly, insists on upgrading to latest 3.5.x first, identifies the current 3.1.12 gap, and creates a plan with the intermediate 3.5.x step."
+  },
+  {
+    "id": "sb4-baseline-02",
+    "category": "baseline",
+    "constraint": "Must upgrade to latest Spring Boot 3.5.x FIRST before 4.x (MUST-DO-01)",
+    "severity": "info",
+    "scenario": {
+      "title": "Upgrade from correct 3.5.x baseline to 4.x",
+      "user_request": "We're on Spring Boot 3.5.3. Can you upgrade us to 4.0.0?",
+      "code_context": "<parent>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-parent</artifactId>\n    <version>3.5.3</version>\n    <relativePath/>\n</parent>"
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent confirms the 3.5.x baseline is present and proceeds with the 4.x upgrade plan, including inventory, dependency changes, and verification."
+  },
+  {
+    "id": "sb4-baseline-03",
+    "category": "baseline",
+    "constraint": "Must build inventory before editing dependencies (MUST-DO-02)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Request to change version without inventory",
+      "user_request": "Just change the Spring Boot version in pom.xml from 3.5.3 to 4.0.0 and update the Maven plugin version. That should be enough.",
+      "code_context": "<properties>\n    <spring-boot.version>3.5.3</spring-boot.version>\n</properties>\n<build>\n    <plugins>\n        <plugin>\n            <groupId>org.springframework.boot</groupId>\n            <artifactId>spring-boot-maven-plugin</artifactId>\n            <version>3.5.3</version>\n        </plugin>\n    </plugins>\n</build>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent refuses to edit dependencies without first building a full inventory of current versions, plugins, and dependencies, and captures Java version, build tools, and framework versions."
+  },
+  {
+    "id": "sb4-baseline-04",
+    "category": "baseline",
+    "constraint": "Must build inventory before editing dependencies (MUST-DO-02)",
+    "severity": "info",
+    "scenario": {
+      "title": "Build inventory before dependency changes (correct behavior)",
+      "user_request": "I want to migrate to Spring Boot 4. What do we have in our project?",
+      "code_context": "The agent reads pom.xml and records Spring Boot version, Java version, Maven version, and plugin versions."
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent reads build files, records current Spring Boot version (3.5.3), Java toolchain, Maven/Gradle version, Kotlin version, Spring Cloud version, Testcontainers, and plugins into an inventory before proposing any changes."
+  },
+  {
+    "id": "sb4-baseline-05",
+    "category": "baseline",
+    "constraint": "Java 17+ required (BASELINE-01)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Project on Java 11 requests Boot 4 upgrade",
+      "user_request": "We're still on Java 11. Can you upgrade us to Spring Boot 4 anyway?",
+      "code_context": "<properties>\n    <java.version>11</java.version>\n    <maven.compiler.source>11</maven.compiler.source>\n    <maven.compiler.target>11</maven.compiler.target>\n</properties>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent blocks the upgrade, explains that Boot 4 requires Java 17+, and asks the user to upgrade to Java 17 or 21 first before proceeding with the Boot 4 migration."
+  },
+  {
+    "id": "sb4-baseline-06",
+    "category": "baseline",
+    "constraint": "Java 17+ required (BASELINE-01)",
+    "severity": "info",
+    "scenario": {
+      "title": "Project on Java 21 requests Boot 4 upgrade (compliant)",
+      "user_request": "We have Java 21. Can we migrate to Spring Boot 4?",
+      "code_context": "<properties>\n    <java.version>21</java.version>\n    <maven.compiler.source>21</maven.compiler.source>\n    <maven.compiler.target>21</maven.compiler.target>\n</properties>"
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent confirms Java 21 satisfies the 17+ requirement and proceeds with the migration plan."
+  },
+  {
+    "id": "sb4-baseline-07",
+    "category": "baseline",
+    "constraint": "Maven 3.6.3+ or Gradle 8.14+/9.x required (BASELINE-02)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Project on Maven 3.5.4 requests Boot 4 upgrade",
+      "user_request": "Can you upgrade our project to Spring Boot 4? Our CI uses Maven 3.5.4.",
+      "code_context": "<prerequisites>\n    <maven>3.5.4</maven>\n</prerequisites>\n\n<!-- Maven wrapper properties -->\n<maven.version>3.5.4</maven.version>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent blocks the upgrade because Maven 3.5.4 is below the minimum 3.6.3+ requirement, and asks the user to upgrade Maven first."
+  },
+  {
+    "id": "sb4-baseline-08",
+    "category": "baseline",
+    "constraint": "Maven 3.6.3+ or Gradle 8.14+/9.x required (BASELINE-02)",
+    "severity": "info",
+    "scenario": {
+      "title": "Project on Gradle 8.14 (compliant)",
+      "user_request": "We use Gradle 8.14. Can we do the Boot 4 migration?",
+      "code_context": "distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.14-bin.zip\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists"
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent confirms Gradle 8.14 meets the minimum 8.14+ requirement and proceeds with the migration plan."
+  },
+  {
+    "id": "sb4-baseline-09",
+    "category": "baseline",
+    "constraint": "Kotlin 2.2+ if Kotlin used (BASELINE-03)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Project on Kotlin 1.9.22 requests Boot 4 upgrade",
+      "user_request": "We have a Kotlin project using version 1.9.22. Can we upgrade Spring Boot to 4?",
+      "code_context": "<properties>\n    <kotlin.version>1.9.22</kotlin.version>\n</properties>\n<dependencies>\n    <dependency>\n        <groupId>org.jetbrains.kotlin</groupId>\n        <artifactId>kotlin-stdlib-jdk8</artifactId>\n        <version>${kotlin.version}</version>\n    </dependency>\n</dependencies>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent blocks the upgrade, noting that Boot 4 requires Kotlin 2.2+, and recommends upgrading Kotlin first, including potential breaking changes in the migration."
+  },
+  {
+    "id": "sb4-baseline-10",
+    "category": "baseline",
+    "constraint": "GraalVM 25+ if native image (BASELINE-04)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Project on GraalVM 22.3 with native image",
+      "user_request": "We build native images with GraalVM 22.3. Can we move to Spring Boot 4?",
+      "code_context": "<plugin>\n    <groupId>org.graalvm.buildtools</groupId>\n    <artifactId>native-maven-plugin</artifactId>\n    <version>0.9.28</version>\n    <extensions>true</extensions>\n</plugin>\n<!-- GraalVM version set via CI: GRAALVM_HOME points to graalvm-ce-java17-22.3.0 -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent blocks the upgrade because GraalVM 22.3 is below the 25+ requirement, and asks the user to upgrade their GraalVM CE/EE to version 25+ and the native build tools plugin."
+  },
+  {
+    "id": "sb4-baseline-11",
+    "category": "baseline",
+    "constraint": "Jakarta EE 11 / Servlet 6.1 required (BASELINE-05)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Project still using javax.servlet API",
+      "user_request": "Upgrade our web application to Spring Boot 4. We use Tomcat.",
+      "code_context": "<dependency>\n    <groupId>javax.servlet</groupId>\n    <artifactId>javax.servlet-api</artifactId>\n    <version>4.0.1</version>\n    <scope>provided</scope>\n</dependency>\n<dependency>\n    <groupId>javax.validation</groupId>\n    <artifactId>validation-api</artifactId>\n    <version>2.0.1.Final</version>\n</dependency>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent identifies javax.servlet and javax.validation dependencies, blocks the upgrade, explains that Boot 4 requires Jakarta EE 11 / Servlet 6.1, and recommends migrating javax.* imports to jakarta.* equivalents."
+  },
+  {
+    "id": "sb4-baseline-12",
+    "category": "baseline",
+    "constraint": "Must record current versions before starting (BASELINE-06)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Developer asks to start migration without recording versions",
+      "user_request": "Let's just start upgrading. I know what dependencies we have. No need to write anything down.",
+      "code_context": "The user dismisses the need to inventory versions."
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent insists on recording current versions of Spring Boot, Spring Framework overrides, Java toolchain, Kotlin, Maven/Gradle, Spring Cloud, Testcontainers, and all plugins before making any changes."
+  },
+  {
+    "id": "sb4-baseline-13",
+    "category": "baseline",
+    "constraint": "Must record current versions before starting (BASELINE-06)",
+    "severity": "info",
+    "scenario": {
+      "title": "Properly record versions before migration",
+      "user_request": "Before we start the migration, let me check what we're using. Read our pom.xml and build files.",
+      "code_context": "Agent reads pom.xml, finds Spring Boot 3.5.3, Java 21, Maven 3.9.6, Spring Cloud 2024.0.0, Testcontainers 1.20.4."
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent records all current versions in a structured inventory, confirming Spring Boot 3.5.3 → 4.0.0, Java 21 ✓, Maven 3.9.6 ✓, Spring Cloud 2024.0.0 needs separate check."
+  },
+  {
+    "id": "sb4-baseline-14",
+    "category": "baseline",
+    "constraint": "Must run existing verification baseline before changes (BASELINE-07)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Skip verification and jump straight to version upgrade",
+      "user_request": "The tests probably pass. Just bump the Spring Boot version to 4.0.0.",
+      "code_context": "Project has existing test suite. The user wants to skip running it before changes."
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent insists on running the existing verification baseline (compile, unit tests, integration tests) before making any changes to establish a known-good state."
+  },
+  {
+    "id": "sb4-baseline-15",
+    "category": "baseline",
+    "constraint": "Must run existing verification baseline before changes (BASELINE-07)",
+    "severity": "warning",
+    "scenario": {
+      "title": "Agent runs unit tests only, skips integration tests for baseline",
+      "user_request": "We have tests. Let's run them first before touching anything to make sure we have a green baseline.",
+      "code_context": "Agent runs `mvn test` (unit tests only) which succeeds, but never runs `mvn verify` or `mvn integration-test` to include integration and container tests."
+    },
+    "expected_action": "FLAG",
+    "pass_condition": "Agent flags that the verification was incomplete, explains that the full baseline must include integration tests, security tests, and startup tests before proceeding."
+  },
+  {
+    "id": "sb4-dependency-01",
+    "category": "dependency",
+    "constraint": "Must run dependency insight after BOM change (MUST-DO-05)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Changed BOM without running dependency insight",
+      "user_request": "I already updated the parent POM to 4.0.0. Can you clean up the dependency overrides?",
+      "code_context": "<parent>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-parent</artifactId>\n    <version>4.0.0</version>\n</parent>\n<!-- User has not run mvn dependency:tree or dependency:insight after the BOM change -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent runs `mvn dependency:tree` or `gradle dependencies` first to verify the resolved dependency graph before making further changes."
+  },
+  {
+    "id": "sb4-dependency-02",
+    "category": "dependency",
+    "constraint": "Must run dependency insight after BOM change (MUST-DO-05)",
+    "severity": "info",
+    "scenario": {
+      "title": "Run dependency insight after BOM change (correct)",
+      "user_request": "We changed the BOM to 4.0.0. Let me check what dependencies resolved.",
+      "code_context": "Agent runs `mvn dependency:tree -DoutputFile=dependency-tree-after-bom.txt` and reviews the output for unexpected version overrides."
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent runs dependency insight commands after the BOM change, captures the output, and examines it for version conflicts or unexpected dependency resolution."
+  },
+  {
+    "id": "sb4-dependency-03",
+    "category": "dependency",
+    "constraint": "Do not leave properties migrator in final state (MUST-NOT-02)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Properties migrator left in pom.xml after migration complete",
+      "user_request": "We finished the migration. Is there anything left to clean up?",
+      "code_context": "<dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-properties-migrator</artifactId>\n    <scope>runtime</scope>\n</dependency>\n<!-- All properties have been migrated, but the migrator dependency remains -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent detects the properties migrator dependency and flags it for removal, explaining it was only temporary and must not be left in the final production artifact."
+  },
+  {
+    "id": "sb4-dependency-04",
+    "category": "dependency",
+    "constraint": "Do not leave classic test starters permanently (MUST-NOT-02)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Classic spring-boot-starter-test left in final state",
+      "user_request": "Our tests pass with Spring Boot 4. Can we call this done?",
+      "code_context": "<dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-test</artifactId>\n    <scope>test</scope>\n</dependency>\n<!-- Using @SpringBootTest everywhere including slice tests that should use dedicated starters -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent flags the classic spring-boot-starter-test as a temporary bridge that must be removed or replaced with technology-specific `*-test` starters, explaining that Boot 4 supersedes the monolithic test starter."
+  },
+  {
+    "id": "sb4-dependency-05",
+    "category": "dependency",
+    "constraint": "Do not leave classic test starters permanently (MUST-NOT-02)",
+    "severity": "warning",
+    "scenario": {
+      "title": "Partial test migration keeps classic starter as fallback",
+      "user_request": "We migrated our tests. Here's our current test dependencies.",
+      "code_context": "<dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-test</artifactId>\n    <scope>test</scope>\n    <exclusions>\n        <exclusion>\n            <groupId>org.springframework.boot</groupId>\n            <artifactId>spring-boot-starter-json</artifactId>\n        </exclusion>\n    </exclusions>\n</dependency>\n<dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-testcontainers-test</artifactId>\n    <scope>test</scope>\n</dependency>\n<dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-web</artifactId>\n</dependency>"
+    },
+    "expected_action": "FLAG",
+    "pass_condition": "Agent detects that spring-boot-starter-test is still present as a monolithic test starter even though partial migration has begun, and recommends fully replacing it with Boot 4 modular `*-test` starters."
+  },
+  {
+    "id": "sb4-dependency-06",
+    "category": "dependency",
+    "constraint": "Check Spring Cloud compatibility separately (PHASE-3-05)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Assume Spring Cloud 2024.0.0 works with Boot 4 without checking",
+      "user_request": "We use Spring Cloud 2024.0.0. Just bump the Boot version to 4.0.0 and it should work.",
+      "code_context": "<dependencyManagement>\n    <dependencies>\n        <dependency>\n            <groupId>org.springframework.cloud</groupId>\n            <artifactId>spring-cloud-dependencies</artifactId>\n            <version>2024.0.0</version>\n            <type>pom</type>\n            <scope>import</scope>\n        </dependency>\n    </dependencies>\n</dependencyManagement>\n<!-- 2024.0.0 was released for Boot 3.x, user has not checked if Spring Cloud has a Boot 4 compatible release train -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent blocks the assumption and checks Spring Cloud compatibility separately, looking for a Spring Cloud release train that supports Boot 4.x, and flags that 2024.0.0 may be incompatible."
+  },
+  {
+    "id": "sb4-dependency-07",
+    "category": "dependency",
+    "constraint": "Check Spring Cloud compatibility separately (PHASE-3-05)",
+    "severity": "info",
+    "scenario": {
+      "title": "Verify Spring Cloud compatibility first (correct)",
+      "user_request": "Before we migrate, what Spring Cloud version is compatible with Boot 4?",
+      "code_context": "Agent checks Spring Boot 4.0 migration guide and Spring Cloud release train compatibility matrix."
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent researches the correct Spring Cloud release train for Boot 4.x, consults official compatibility matrices, and documents the required Spring Cloud version upgrade separately."
+  },
+  {
+    "id": "sb4-dependency-08",
+    "category": "dependency",
+    "constraint": "Do not mix Boot 3 and Boot 4 deps in same artifact (MUST-NOT-03)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Shared internal library attempts dual Boot 3/4 compatibility",
+      "user_request": "We have a shared library used by both Boot 3 and Boot 4 apps. Can we make it work with both?",
+      "code_context": "<parent>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-parent</artifactId>\n    <version>4.0.0</version>\n</parent>\n<!-- Library explicitly imports Boot 3.x dependencies for backward compatibility -->\n<dependency>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-autoconfigure</artifactId>\n    <version>3.5.3</version>\n    <scope>compile</scope>\n</dependency>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent blocks the approach, explains that mixing Boot 3 and Boot 4 dependencies in the same artifact is unsupported, and recommends maintaining separate build variants or branches for Boot 3 and Boot 4."
+  },
+  {
+    "id": "sb4-dependency-09",
+    "category": "dependency",
+    "constraint": "Remove explicit versions that fight Boot BOM (PHASE-3-04)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Explicit Jackson version overrides Boot 4 BOM",
+      "user_request": "Update our project to Boot 4 but keep our Jackson version override.",
+      "code_context": "<properties>\n    <jackson.version>2.15.3</jackson.version>\n</properties>\n<!-- Spring Boot 4.0.0 BOM manages Jackson at 2.18.x -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent flags the explicit Jackson version that conflicts with the Boot 4 BOM, explains that overriding BOM-managed versions without explicit need and verification is an anti-pattern, and asks for justification or removes it."
+  },
+  {
+    "id": "sb4-dependency-10",
+    "category": "dependency",
+    "constraint": "Remove explicit versions that fight Boot BOM (PHASE-3-04)",
+    "severity": "info",
+    "scenario": {
+      "title": "Remove unnecessary explicit version (correct)",
+      "user_request": "We had explicit Jackson and Hibernate versions from Boot 3. Do we still need them?",
+      "code_context": "<properties>\n    <jackson.version>2.15.3</jackson.version>\n    <hibernate.version>6.2.9.Final</hibernate.version>\n</properties>\n<dependencies>\n    <dependency>\n        <groupId>com.fasterxml.jackson.core</groupId>\n        <artifactId>jackson-databind</artifactId>\n    </dependency>\n</dependencies>"
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent recommends removing explicit Jackson and Hibernate version overrides since Boot 4 BOM provides compatible versions, runs `mvn dependency:tree` to confirm, and only keeps explicit versions with documented justification."
+  },
+  {
+    "id": "sb4-dependency-11",
+    "category": "dependency",
+    "constraint": "Third-party starters may pin Boot 3 internals (CHECKLIST-DEP-03)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Third-party starter transitively depends on Boot 3 autoconfigure",
+      "user_request": "We use the Acme Corp starter. Just update the Boot BOM and it should be fine.",
+      "code_context": "<dependency>\n    <groupId>com.acme</groupId>\n    <artifactId>acme-spring-boot-starter</artifactId>\n    <version>3.2.1</version>\n</dependency>\n<!-- acme-starter has a transitive dependency on spring-boot-autoconfigure:3.2.x -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent flags the third-party starter for compatibility review, runs `mvn dependency:tree` to identify transitive Boot 3 internals, and recommends checking with the vendor for a Boot 4 compatible version."
+  },
+  {
+    "id": "sb4-dependency-12",
+    "category": "dependency",
+    "constraint": "Internal shared starters need separate Boot 4 build (CHECKLIST-DEP-04)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Internal starter not updated for Boot 4 but still referenced",
+      "user_request": "Let's just update the main app. The internal company-starter should work.",
+      "code_context": "<dependency>\n    <groupId>com.mycompany</groupId>\n    <artifactId>company-spring-boot-starter</artifactId>\n    <version>1.5.0</version>\n</dependency>\n<!-- company-starter-1.5.0 was built against Spring Boot 3.2.x and has not been re-released for Boot 4 -->"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent flags the internal starter, checks whether a Boot 4-compatible build exists, and if not, blocks the upgrade until the internal starter has a separate Boot 4 build or a compatibility plan is in place."
+  },
+  {
+    "id": "sb4-dependency-13",
+    "category": "dependency",
+    "constraint": "Internal shared starters need separate Boot 4 build (CHECKLIST-DEP-04)",
+    "severity": "info",
+    "scenario": {
+      "title": "Internal starter has a Boot 4 variant (correct)",
+      "user_request": "We have an internal starter. We already built a Boot 4 compatible version.",
+      "code_context": "<dependency>\n    <groupId>com.mycompany</groupId>\n    <artifactId>company-spring-boot-starter</artifactId>\n    <version>2.0.0-boot4</version>\n</dependency>\n<!-- The starter has been recompiled and tested against SB 4.0.0 -->"
+    },
+    "expected_action": "ALLOW",
+    "pass_condition": "Agent confirms the internal starter has been rebuilt for Boot 4 with a separate artifact version, verifies its dependency tree doesn't pull in Boot 3 internals, and proceeds."
+  },
+  {
+    "id": "sb4-dependency-14",
+    "category": "dependency",
+    "constraint": "Annotation processors and codegen plugins need compatibility check (CHECKLIST-DEP-05)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "MapStruct annotation processor version incompatible with Boot 4",
+      "user_request": "Upgrade to Boot 4 but we still use MapStruct for code generation.",
+      "code_context": "<plugin>\n    <groupId>org.apache.maven.plugins</groupId>\n    <artifactId>maven-compiler-plugin</artifactId>\n    <configuration>\n        <annotationProcessorPaths>\n            <path>\n                <groupId>org.mapstruct</groupId>\n                <artifactId>mapstruct-processor</artifactId>\n                <version>1.5.5.Final</version>\n            </path>\n            <path>\n                <groupId>org.projectlombok</groupId>\n                <artifactId>lombok</artifactId>\n                <version>1.18.30</version>\n            </path>\n        </annotationProcessorPaths>\n    </configuration>\n</plugin>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent flags MapStruct 1.5.5.Final and Lombok 1.18.30 for compatibility review against Boot 4's Java 17+ baseline, checks for known incompatibilities, and recommends upgrading to versions that support the target Java and Boot 4 stack."
+  },
+  {
+    "id": "sb4-dependency-15",
+    "category": "dependency",
+    "constraint": "Do not leave properties migrator in final state (MUST-NOT-02)",
+    "severity": "blocker",
+    "scenario": {
+      "title": "Both properties migrator and classic test starter left after 'completion'",
+      "user_request": "Migration is done. All tests pass. Can we ship it?",
+      "code_context": "<dependencies>\n    <!-- Leftover from migration discovery phase -->\n    <dependency>\n        <groupId>org.springframework.boot</groupId>\n        <artifactId>spring-boot-properties-migrator</artifactId>\n        <scope>runtime</scope>\n    </dependency>\n    <!-- Classic test starter not migrated to slice starters -->\n    <dependency>\n        <groupId>org.springframework.boot</groupId>\n        <artifactId>spring-boot-starter-test</artifactId>\n        <scope>test</scope>\n    </dependency>\n</dependencies>"
+    },
+    "expected_action": "BLOCK",
+    "pass_condition": "Agent identifies both the properties migrator and the classic test starter as leftover temporary dependencies that must be removed before the migration is considered complete."
+  }
+]
