@@ -127,231 +127,229 @@ Khi bạn tin rằng công việc đã HOÀN THÀNH, bạn BẮT BUỘC phải b
       }
     }
   }
-// ------------------------------------
+  // ------------------------------------
 
 
 
 
-// Read current role
-let currentRole = 'default';
-if (fs.existsSync(roleJsonPath)) {
-  try {
-    const data = JSON.parse(fs.readFileSync(roleJsonPath, 'utf8'));
-    const rawRole = data.role || 'default';
-    if (rawRole === 'default' || definedRoles.includes(rawRole)) {
-      currentRole = rawRole;
-    } else {
-      fs.writeFileSync(roleJsonPath, JSON.stringify({ role: 'default' }, null, 2), 'utf8');
-      currentRole = 'default';
-      debugLog(`Invalid role found in role.json, reset to default`);
-    }
-    debugLog(`read currentRole: ${currentRole}`);
-  } catch (e) {
-    debugLog(`Error reading currentRole: ${e.message}`);
-  }
-}
-
-if (definedRoles.length > 0) {
-  let matchedRole = null;
-
-  // 1. Check if the user is using the /v-role command in their LATEST user message
-  const userMessages = output.messages.filter(m => m.info.role === 'user');
-  let lastUserText = '';
-  if (userMessages.length > 0) {
-    const lastUserMsg = userMessages[userMessages.length - 1];
-    for (const part of lastUserMsg.parts) {
-      if (part.type === 'text') {
-        if (
-          part.text.includes('VCORP_ROLE_PROMPT') ||
-          part.text.includes('EXTREMELY_IMPORTANT') ||
-          part.text.includes('VCORP_ROLE_CONFIRMATION') ||
-          part.text.includes('VCORP_ACTIVE_ROLE')
-        ) {
-          continue;
-        }
-        lastUserText += ' ' + part.text.toLowerCase();
-      } else if (part.type === 'tool' && part.tool === 'question' && part.state && part.state.status === 'completed') {
-        lastUserText += ' ' + (part.state.output ? part.state.output.toLowerCase() : '');
-      }
-    }
-  }
-  lastUserText = lastUserText.trim();
-
-  const hasVRoleCommand = lastUserText.includes('/v-role') ||
-    lastUserText.includes('yêu cầu chuyển đổi hoặc thiết lập lại vai trò phát triển của v-agent');
-
-  let isInvalidCommand = false;
-  let cleanText = lastUserText;
-  if (hasVRoleCommand) {
-    cleanText = lastUserText
-      .replace('/v-role', '')
-      .replace(/yêu cầu chuyển đổi hoặc thiết lập lại vai trò phát triển của v-agent/gi, '')
-      .trim();
-  }
-
-  if (hasVRoleCommand) {
-    // Check if a valid role is specified as an argument in the cleaned text
-    for (const r of definedRoles) {
-      const regex = new RegExp(`\\b${r}\\b`);
-      if (regex.test(cleanText)) {
-        matchedRole = r;
-        break;
-      }
-    }
-
-    if (!matchedRole) {
-      if (cleanText.length > 0) {
-        isInvalidCommand = true;
+  // Read current role and autoInjectRolePrompt flag
+  let currentRole = 'default';
+  let autoInjectRolePrompt = true;
+  if (fs.existsSync(roleJsonPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(roleJsonPath, 'utf8'));
+      const rawRole = data.role || 'default';
+      if (rawRole === 'default' || definedRoles.includes(rawRole)) {
+        currentRole = rawRole;
       } else {
-        // Reset role to default if command has no arguments
+        fs.writeFileSync(roleJsonPath, JSON.stringify({ role: 'default', autoInjectRolePrompt }, null, 2), 'utf8');
         currentRole = 'default';
-        try {
-          fs.writeFileSync(roleJsonPath, JSON.stringify({ role: 'default' }, null, 2), 'utf8');
-          debugLog(`successfully reset role to default via /v-role command`);
-        } catch (e) {
-          debugLog(`Error resetting role.json: ${e.message}`);
-        }
+        debugLog(`Invalid role found in role.json, reset to default`);
       }
+      if (typeof data.autoInjectRolePrompt === 'boolean') {
+        autoInjectRolePrompt = data.autoInjectRolePrompt;
+      }
+      debugLog(`read currentRole: ${currentRole}, autoInjectRolePrompt: ${autoInjectRolePrompt}`);
+    } catch (e) {
+      debugLog(`Error reading currentRole: ${e.message}`);
     }
-  } else if (currentRole === 'default') {
-    // If role is default, identify prompt-response-confirmation boundaries in history
-    let lastPromptIndex = -1;
-    let lastConfirmIndex = -1;
-    for (let i = 0; i < output.messages.length; i++) {
-      const msg = output.messages[i];
-      if (!msg.parts) continue;
-      for (const part of msg.parts) {
+  }
+
+  if (definedRoles.length > 0) {
+    let matchedRole = null;
+
+    // 1. Check if the user is using the /v-role command in their LATEST user message
+    const userMessages = output.messages.filter(m => m.info.role === 'user');
+    let lastUserText = '';
+    if (userMessages.length > 0) {
+      const lastUserMsg = userMessages[userMessages.length - 1];
+      for (const part of lastUserMsg.parts) {
         if (part.type === 'text') {
-          if (part.text.includes('VCORP_ROLE_PROMPT')) {
-            lastPromptIndex = i;
+          if (
+            part.text.includes('VCORP_ROLE_PROMPT') ||
+            part.text.includes('EXTREMELY_IMPORTANT') ||
+            part.text.includes('VCORP_ROLE_CONFIRMATION') ||
+            part.text.includes('VCORP_ACTIVE_ROLE')
+          ) {
+            continue;
           }
-          if (part.text.includes('VCORP_ROLE_CONFIRMATION')) {
-            lastConfirmIndex = i;
-          }
+          lastUserText += ' ' + part.text.toLowerCase();
+        } else if (part.type === 'tool' && part.tool === 'question' && part.state && part.state.status === 'completed') {
+          lastUserText += ' ' + (part.state.output ? part.state.output.toLowerCase() : '');
         }
       }
     }
+    lastUserText = lastUserText.trim();
 
-    let textToCheck = '';
-    const isPromptResolved = lastPromptIndex !== -1 && lastConfirmIndex !== -1 && lastConfirmIndex >= lastPromptIndex;
-    if (!isPromptResolved) {
-      const startIndex = lastPromptIndex !== -1 ? lastPromptIndex : 0;
-      for (let i = startIndex; i < output.messages.length; i++) {
-        const msg = output.messages[i];
-        if (!msg.parts) continue;
-        for (const part of msg.parts) {
-          if (part.type === 'text') {
-            if (
-              part.text.includes('VCORP_ROLE_PROMPT') ||
-              part.text.includes('EXTREMELY_IMPORTANT') ||
-              part.text.includes('VCORP_ROLE_CONFIRMATION') ||
-              part.text.includes('VCORP_ACTIVE_ROLE')
-            ) {
-              continue;
-            }
-            textToCheck += ' ' + part.text.toLowerCase();
-          } else if (part.type === 'tool' && part.tool === 'question' && part.state && part.state.status === 'completed') {
-            textToCheck += ' ' + (part.state.output ? part.state.output.toLowerCase() : '');
-          }
-        }
-      }
+    const hasVRoleCommand = lastUserText.includes('/v-role') ||
+      lastUserText.includes('yêu cầu chuyển đổi hoặc thiết lập lại vai trò phát triển của v-agent');
+
+    let isInvalidCommand = false;
+    let cleanText = lastUserText;
+    if (hasVRoleCommand) {
+      cleanText = lastUserText
+        .replace('/v-role', '')
+        // Strip command template suffixes (support both old and new format)
+        .replace(/—\s*chuyển đổi vai trò làm việc của v-agent/gi, '')
+        .replace(/yêu cầu chuyển đổi hoặc thiết lập lại vai trò phát triển của v-agent/gi, '')
+        .trim();
     }
-    textToCheck = textToCheck.trim();
 
-    if (textToCheck) {
+    if (hasVRoleCommand) {
+      // Check if a valid role is specified as an argument in the cleaned text
       for (const r of definedRoles) {
         const regex = new RegExp(`\\b${r}\\b`);
-        if (regex.test(textToCheck)) {
+        if (regex.test(cleanText)) {
           matchedRole = r;
           break;
         }
       }
-    }
-    debugLog(`scanned messages, textToCheck: "${textToCheck}", matchedRole: ${matchedRole}, currentRole: ${currentRole}`);
-  }
 
-  if (isInvalidCommand) {
-    const errorMsg = `\n\n<important-reminder id="VCORP_ROLE_ERROR">
+      // Track whether bare /v-role was used while already in default
+      let bareVRoleInDefault = false;
+
+      if (!matchedRole) {
+        if (cleanText.length > 0) {
+          isInvalidCommand = true;
+        } else {
+          // Bare /v-role command with no arguments
+          if (currentRole !== 'default') {
+            // User is switching FROM a role → reset to default
+            currentRole = 'default';
+            try {
+              fs.writeFileSync(roleJsonPath, JSON.stringify({ role: 'default', autoInjectRolePrompt }, null, 2), 'utf8');
+              debugLog(`successfully reset role to default via /v-role command`);
+            } catch (e) {
+              debugLog(`Error resetting role.json: ${e.message}`);
+            }
+          } else {
+            // Already in default, bare /v-role means user wants to choose a role
+            bareVRoleInDefault = true;
+          }
+        }
+      }
+
+      // If bare /v-role in default → inject VCORP_ROLE_PROMPT to let user choose
+      if (bareVRoleInDefault && autoInjectRolePrompt) {
+        if (userMessages.length > 0) {
+          const lastUserMsg = userMessages[userMessages.length - 1];
+          if (lastUserMsg && lastUserMsg.parts.length) {
+            if (!lastUserMsg.parts.some(p => p.type === 'text' && p.text.includes('VCORP_ROLE_PROMPT'))) {
+              const promptMsg = `\n\n<important-reminder id="VCORP_ROLE_PROMPT">
+[VCORP SYSTEM] Hệ thống phát hiện dự án chỉ có cấu hình các vai trò (roles) sau: [ ${definedRoles.join(', ')} ].
+BẮT BUỘC: Bạn PHẢI dừng mọi phản hồi thông thường và yêu cầu người dùng chọn chính xác một trong các vai trò trên: [ ${definedRoles.join(', ')} ]. Tuyệt đối KHÔNG tự ý đưa ra các vai trò ví dụ khác (như SA, Tester, DevLead, v.v.) không có trong danh sách được phát hiện.
+</important-reminder>`;
+              const ref = lastUserMsg.parts[0];
+              lastUserMsg.parts.unshift({ ...ref, type: 'text', text: promptMsg });
+            }
+          }
+        }
+      }
+    } else if (currentRole === 'default') {
+      // Auto-role detection from conversation text is DISABLED (was a bug — false positives).
+      // Role switching only happens via explicit /v-role command.
+      debugLog(`currentRole is default, waiting for /v-role command`);
+    }
+
+    if (isInvalidCommand) {
+      const errorMsg = `\n\n<important-reminder id="VCORP_ROLE_ERROR">
 [VCORP SYSTEM] Yêu cầu chuyển sang vai trò không thành công. Lý do: Vai trò được yêu cầu không hợp lệ hoặc chưa được cấu hình (dự án hiện chỉ có cấu hình các vai trò: [ ${definedRoles.join(', ')} ]).
 BẮT BUỘC CHO AI: Bạn TUYỆT ĐỐI KHÔNG được gọi bất kỳ công cụ nào (như read, write, edit, glob, skill...) để kiểm tra hay thao tác trong lượt này. Hãy phản hồi trực tiếp, ngắn gọn từ chối yêu cầu chuyển đổi vai trò này và thông báo cho người dùng biết dự án chỉ hỗ trợ các vai trò: [ ${definedRoles.join(', ')} ].
 </important-reminder>`;
-    if (userMessages.length > 0) {
-      const lastUserMsg = userMessages[userMessages.length - 1];
-      const ref = lastUserMsg.parts[0];
-      lastUserMsg.parts.unshift({ ...ref, type: 'text', text: errorMsg });
-    }
-  } else if (matchedRole && matchedRole !== currentRole) {
-    currentRole = matchedRole;
-    try {
-      fs.writeFileSync(roleJsonPath, JSON.stringify({ role: matchedRole }, null, 2), 'utf8');
-      debugLog(`successfully wrote role ${matchedRole} to role.json`);
-    } catch (e) {
-      debugLog(`Error writing role.json: ${e.message}`);
-    }
+      if (userMessages.length > 0) {
+        const lastUserMsg = userMessages[userMessages.length - 1];
+        const ref = lastUserMsg.parts[0];
+        lastUserMsg.parts.unshift({ ...ref, type: 'text', text: errorMsg });
+      }
+    } else if (matchedRole && matchedRole !== currentRole) {
+      currentRole = matchedRole;
+      try {
+        fs.writeFileSync(roleJsonPath, JSON.stringify({ role: matchedRole, autoInjectRolePrompt }, null, 2), 'utf8');
+        debugLog(`successfully wrote role ${matchedRole} to role.json`);
+      } catch (e) {
+        debugLog(`Error writing role.json: ${e.message}`);
+      }
 
-    const confirmMsg = `\n\n<important-reminder id="VCORP_ROLE_CONFIRMATION">
+      const confirmMsg = `\n\n<important-reminder id="VCORP_ROLE_CONFIRMATION">
 [VCORP SYSTEM] Đã xác nhận và chuyển sang vai trò: ${matchedRole.toUpperCase()}.
 Tập kỹ năng tương ứng cho vai trò "${matchedRole}" đã được nạp thành công.
 LƯU Ý QUAN TRỌNG CHO AI: Việc chuyển đổi vai trò đã được hệ thống tự động thực hiện và lưu vào role.json. Bạn TUYỆT ĐỐI không cần phải chỉnh sửa file, không cần nạp hay tạo skill nào khác cho tác vụ này. Hãy chỉ xác nhận ngắn gọn bằng 1 câu rằng bạn đã nhận diện vai trò ${matchedRole.toUpperCase()} và sẵn sàng hỗ trợ các bước tiếp theo.
 </important-reminder>`;
-    if (userMessages.length > 0) {
-      const lastUserMsg = userMessages[userMessages.length - 1];
-      const ref = lastUserMsg.parts[0];
-      lastUserMsg.parts.unshift({ ...ref, type: 'text', text: confirmMsg });
-    }
-  } else if (currentRole === 'default') {
-    // If no role matched yet and we are still in default role, inject warning prompt asking agent to ask user for role
-    if (userMessages.length > 0) {
-      const lastUserMsg = userMessages[userMessages.length - 1];
-      if (lastUserMsg && lastUserMsg.parts.length) {
-        if (!lastUserMsg.parts.some(p => p.type === 'text' && p.text.includes('VCORP_ROLE_PROMPT'))) {
-          const promptMsg = `\n\n<important-reminder id="VCORP_ROLE_PROMPT">
+      if (userMessages.length > 0) {
+        const lastUserMsg = userMessages[userMessages.length - 1];
+        const ref = lastUserMsg.parts[0];
+        lastUserMsg.parts.unshift({ ...ref, type: 'text', text: confirmMsg });
+      }
+    } else if (currentRole === 'default' && autoInjectRolePrompt) {
+      // If no role matched yet and we are still in default role, inject warning prompt asking agent to ask user for role
+      if (userMessages.length > 0) {
+        const lastUserMsg = userMessages[userMessages.length - 1];
+        if (lastUserMsg && lastUserMsg.parts.length) {
+          if (!lastUserMsg.parts.some(p => p.type === 'text' && p.text.includes('VCORP_ROLE_PROMPT'))) {
+            const promptMsg = `\n\n<important-reminder id="VCORP_ROLE_PROMPT">
 [VCORP SYSTEM] Hệ thống phát hiện dự án chỉ có cấu hình các vai trò (roles) sau: [ ${definedRoles.join(', ')} ].
 BẮT BUỘC: Bạn PHẢI dừng mọi phản hồi thông thường và yêu cầu người dùng chọn chính xác một trong các vai trò trên: [ ${definedRoles.join(', ')} ]. Tuyệt đối KHÔNG tự ý đưa ra các vai trò ví dụ khác (như SA, Tester, DevLead, v.v.) không có trong danh sách được phát hiện.
 </important-reminder>`;
-          const ref = lastUserMsg.parts[0];
-          lastUserMsg.parts.unshift({ ...ref, type: 'text', text: promptMsg });
+            const ref = lastUserMsg.parts[0];
+            lastUserMsg.parts.unshift({ ...ref, type: 'text', text: promptMsg });
+          }
         }
       }
     }
   }
-}
 
-// If specific role is active, inject path override instructions (inject into last user message to keep it in active memory)
-if (currentRole !== 'default') {
+  // Always inject VCORP_ACTIVE_ROLE (even for 'default' — just without skill content)
   const userMessages = output.messages.filter(m => m.info.role === 'user');
   if (userMessages.length > 0) {
     const lastUserMsg = userMessages[userMessages.length - 1];
     if (lastUserMsg && lastUserMsg.parts.length) {
       if (!lastUserMsg.parts.some(p => p.type === 'text' && p.text.includes('VCORP_ACTIVE_ROLE'))) {
         let roleSkillContent = '';
-        const roleSkillPath = path.join(roleDir, currentRole, 'SKILL.md');
-        if (fs.existsSync(roleSkillPath)) {
-          try {
-            roleSkillContent = fs.readFileSync(roleSkillPath, 'utf8');
-            debugLog(`successfully loaded role-specific SKILL.md content from ${roleSkillPath}`);
-          } catch (e) {
-            debugLog(`Error reading role SKILL.md: ${e.message}`);
+        if (currentRole !== 'default') {
+          const roleSkillPath = path.join(roleDir, currentRole, 'SKILL.md');
+          if (fs.existsSync(roleSkillPath)) {
+            try {
+              roleSkillContent = fs.readFileSync(roleSkillPath, 'utf8');
+              debugLog(`successfully loaded role-specific SKILL.md content from ${roleSkillPath}`);
+            } catch (e) {
+              debugLog(`Error reading role SKILL.md: ${e.message}`);
+            }
           }
         }
 
+        const roleUpper = currentRole.toUpperCase();
         let roleInstruction = `\n\n<VCORP_ACTIVE_ROLE>
-[DỰ ÁN V-CORP] Vai trò hiện tại của bạn: ${currentRole.toUpperCase()}.`;
+[DỰ ÁN V-CORP] Bạn là MONARCH — orchestrator chính.
+
+Trong dự án này, bạn đang nhận nhiệm vụ với vai trò: ${roleUpper}.`;
 
         if (roleSkillContent) {
-          roleInstruction += `\n\n[HƯỚNG DẪN BẮT BUỘC CHO VAI TRÒ ${currentRole.toUpperCase()}]\n${roleSkillContent}`;
+          roleInstruction += `\n\n---[KIẾN THỨC CHUYÊN MÔN CHO NHIỆM VỤ ${roleUpper}]---\n${roleSkillContent}`;
         }
 
-        roleInstruction += `\n\nMọi kỹ năng mới hoặc chỉnh sửa cho vai trò này BẮT BUỘC phải tuân thủ nghiêm ngặt kỹ năng \`writing-skills\` (YAML description bắt đầu bằng 'Use when...', có đủ Overview, When to Use, Common Mistakes) và được lưu theo cấu trúc:
+        if (currentRole !== 'default') {
+          roleInstruction += `\n\n---[MỐI QUAN HỆ GIỮA MONARCH VÀ ${roleUpper}]---
+- Monarch là identity chính của bạn: bạn là orchestrator, lập kế hoạch, decompose, delegate cho subagents.
+- ${roleUpper} là nhiệm vụ chuyên môn bạn đang đảm nhận trong dự án này: nó cung cấp kiến thức domain, quy trình, và phạm vi công việc.
+- Khi nhận được yêu cầu:
+  1. Dùng Monarch orchestration để phân tích, decompose, lên kế hoạch.
+  2. Dùng kiến thức từ nhiệm vụ ${roleUpper} để thực thi công việc chuyên môn.
+- Việc có nhiệm vụ ${roleUpper} KHÔNG thay thế identity Monarch của bạn — nó bổ sung chuyên môn cho bạn.
+
+Mọi kỹ năng mới hoặc chỉnh sửa cho nhiệm vụ này BẮT BUỘC phải tuân thủ nghiêm ngặt kỹ năng \`writing-skills\` (YAML description bắt đầu bằng 'Use when...', có đủ Overview, When to Use, Common Mistakes) và được lưu theo cấu trúc:
 - Thư mục: .v-skills/role/${currentRole}/${currentRole}-<tên-kỹ-năng>/
 - File: .v-skills/role/${currentRole}/${currentRole}-<tên-kỹ-năng>/SKILL.md
 Tuyệt đối KHÔNG lưu kỹ năng vào thư mục toàn cục (~/.agents/skills/).
 </VCORP_ACTIVE_ROLE>`;
+        } else {
+          roleInstruction += `\n\nBạn đang ở vai trò mặc định — không có kiến thức chuyên môn domain cụ thể.
+Dùng lệnh \`/v-role <tên-vai-trò>\` để chuyển đổi vai trò khi cần.
+</VCORP_ACTIVE_ROLE>`;
+        }
 
         const ref = lastUserMsg.parts[0];
         lastUserMsg.parts.unshift({ ...ref, type: 'text', text: roleInstruction });
       }
     }
   }
-}
 };

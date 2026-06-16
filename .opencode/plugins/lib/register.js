@@ -3,10 +3,10 @@ import path from 'path';
 
 export const autoRegisterCommand = (directory, configDir, debugLog) => {
   const vRoleContent = `---
-description: Thay đổi vai trò làm việc của V-Agent
+description: Chuyển đổi vai trò V-Agent (vd: /v-role vauthz-checker)
 ---
 
-Yêu cầu chuyển đổi hoặc thiết lập lại vai trò phát triển của V-Agent
+/v-role — Chuyển đổi vai trò làm việc của V-Agent
 `;
 
   const ulwContent = `---
